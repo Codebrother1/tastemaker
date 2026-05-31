@@ -1,4 +1,5 @@
 import { invokeLLM } from "./llm";
+import { createHash } from "node:crypto";
 import type {
   Clip,
   ClipAnnotationData,
@@ -11,6 +12,24 @@ import type {
  * Centralized prompt + JSON-schema layer for StyleLab.
  * Every public function here returns clean, typed data — never raw LLM strings.
  */
+
+/**
+ * Stable SHA-256 of the meaningful inputs that go into a clip annotation:
+ * the clip text plus the sorted list of active rule ids. Used by the
+ * annotation refresh sweep to skip clips whose inputs haven't actually
+ * changed even when the active style guide version did.
+ */
+export function computeAnnotationInputHash(
+  clipContent: string,
+  activeRuleIds: number[]
+): string {
+  const sortedIds = [...activeRuleIds].sort((a, b) => a - b).join(",");
+  return createHash("sha256")
+    .update(clipContent)
+    .update("\u0000")
+    .update(sortedIds)
+    .digest("hex");
+}
 
 const ANNOTATION_SCHEMA = {
   name: "clip_annotation",

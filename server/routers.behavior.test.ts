@@ -25,6 +25,9 @@ vi.mock("./db", () => {
     listReflectionsForClip: vi.fn(async () => []),
     upsertAnnotation: vi.fn(async () => undefined),
     createDraftReview: vi.fn(async () => 1),
+    createImportAudit: vi.fn(async () => 1),
+    listImportAudits: vi.fn(async () => []),
+    listClips: vi.fn(async () => [{ id: 10, userId: 1, content: "a" }, { id: 11, userId: 1, content: "b" }]),
   };
 });
 
@@ -38,6 +41,15 @@ vi.mock("./_core/styleAI", () => ({
     dominantEffect: "clarity",
     notes: "",
   })),
+  computeAnnotationInputHash: vi.fn((content: string, ruleIds: number[]) => {
+    // Deterministic 64-char hex for tests; differs by content & rule set.
+    const seed = `${content}|${[...ruleIds].sort((a, b) => a - b).join(",")}`;
+    let h = 0x811c9dc5;
+    for (let i = 0; i < seed.length; i++) {
+      h = Math.imul(h ^ seed.charCodeAt(i), 16777619) >>> 0;
+    }
+    return h.toString(16).padStart(8, "0").repeat(8);
+  }),
   extractTextFromImage: vi.fn(),
   generateRulesFromPattern: vi.fn(),
   reviewDraft: vi.fn(),
@@ -172,8 +184,36 @@ describe("clips.bulkImport", () => {
       sourceTitle: "Book",
       capturedFrom: "import",
     });
+    // Audit log: one row written with the right counts and filename.
+    expect(db.createImportAudit).toHaveBeenCalledTimes(1);
+    const audit = (db.createImportAudit as any).mock.calls[0][0];
+    expect(audit).toMatchObject({
+      userId: 1,
+      format: "csv",
+      filename: "highlights.csv",
+      inserted: 2,
+      skipped: 1,
+      truncated: 0,
+    });
   });
 
+  it("dryRun does not write an import audit row", async () => {
+    const caller = appRouter.createCaller(ctx());
+    const text = `content\n"x"\n`;
+    await caller.clips.bulkImport({ text, format: "csv", dryRun: true });
+    expect(db.createImportAudit).not.toHaveBeenCalled();
+  });
+});
+
+describe("clips.listImports", () => {
+  it("is per-user and forwards the limit argument", async () => {
+    const caller = appRouter.createCaller(ctx());
+    await caller.clips.listImports({ limit: 5 });
+    expect(db.listImportAudits).toHaveBeenCalledWith(1, 5);
+  });
+});
+
+describe("clips.bulkImport (dry run)", () => {
   it("in dryRun mode never calls bulkCreateClips and returns a preview", async () => {
     const caller = appRouter.createCaller(ctx());
     const text = `content,extra\n"only one","x"\n`;
@@ -257,7 +297,35 @@ describe("clips.refreshAnnotations", () => {
     (db.getClipsByIds as any).mockResolvedValueOnce([]);
     const caller = appRouter.createCaller(ctx());
     await caller.clips.refreshAnnotations({ limit: 5 });
-    expect(db.listStaleAnnotationClipIds).toHaveBeenCalledWith(1, 1, 5);
+    const callArgs = (db.listStaleAnnotationClipIds as any).mock.calls[0];
+    expect(callArgs[0]).toBe(1); // userId
+    expect(callArgs[1]).toBeInstanceOf(Map); // expectedHashByClipId
+    expect(callArgs[2]).toBe(5); // limit
+  });
+
+  it("passes a hash map keyed by clip id to listStaleAnnotationClipIds", async () => {
+    (db.getActiveVersion as any).mockResolvedValueOnce({ id: 1 });
+    (db.listRules as any).mockResolvedValueOnce([
+      { id: 100 },
+      { id: 101 },
+    ]);
+    (db.listClips as any).mockResolvedValueOnce([
+      { id: 10, userId: 1, content: "alpha" },
+      { id: 11, userId: 1, content: "beta" },
+    ]);
+    (db.listStaleAnnotationClipIds as any).mockResolvedValueOnce([]);
+    (db.getClipsByIds as any).mockResolvedValueOnce([]);
+    const caller = appRouter.createCaller(ctx());
+    await caller.clips.refreshAnnotations();
+    const map = (db.listStaleAnnotationClipIds as any).mock.calls[0][1] as Map<
+      number,
+      string
+    >;
+    expect(map.size).toBe(2);
+    expect(typeof map.get(10)).toBe("string");
+    expect(map.get(10)!.length).toBe(64);
+    // Different clip content yields different hash
+    expect(map.get(10)).not.toBe(map.get(11));
   });
 });
 

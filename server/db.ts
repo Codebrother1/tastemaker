@@ -7,6 +7,7 @@ import {
   clips,
   collections,
   draftReviews,
+  importAudits,
   styleGuideVersions,
   styleRules,
   tastePatterns,
@@ -19,11 +20,13 @@ import {
   type DraftReview,
   type DraftScores,
   type DraftSuggestion,
+  type ImportAudit,
   type InsertClip,
   type InsertClipAnnotation,
   type InsertClipReflection,
   type InsertCollection,
   type InsertDraftReview,
+  type InsertImportAudit,
   type InsertStyleGuideVersion,
   type InsertStyleRule,
   type InsertTastePattern,
@@ -272,20 +275,25 @@ export async function upsertAnnotation(input: InsertClipAnnotation) {
         data: input.data,
         model: input.model,
         styleGuideVersionId: input.styleGuideVersionId ?? null,
+        contentHash: input.contentHash ?? null,
         createdAt: new Date(),
       },
     });
 }
 
 /**
- * Return ids of clips that have NO annotation, plus ids of clips whose
- * annotation was produced under a style guide version different from the
- * supplied `currentVersionId`. Soft-deleted clips are excluded. Capped at
+ * Return ids of clips whose annotation is missing or whose stored
+ * `contentHash` differs from the freshly-computed input hash for that clip
+ * under the active rule set. Soft-deleted clips are excluded. Capped at
  * `limit` rows so a sweep is bounded.
+ *
+ * `expectedHashByClipId` is computed by the caller (router) so we can keep
+ * the hashing function colocated with the AI helper while the DB layer
+ * stays purely about persistence.
  */
 export async function listStaleAnnotationClipIds(
   userId: number,
-  currentVersionId: number | null,
+  expectedHashByClipId: Map<number, string>,
   limit: number
 ): Promise<number[]> {
   const db = await requireDb();
@@ -298,28 +306,54 @@ export async function listStaleAnnotationClipIds(
   const annots = await db
     .select({
       clipId: clipAnnotations.clipId,
-      styleGuideVersionId: clipAnnotations.styleGuideVersionId,
+      contentHash: clipAnnotations.contentHash,
     })
     .from(clipAnnotations)
     .where(eq(clipAnnotations.userId, userId));
-  const annotByClip = new Map<number, number | null>(
-    annots.map((a) => [a.clipId, a.styleGuideVersionId])
+  const annotByClip = new Map<number, string | null>(
+    annots.map((a) => [a.clipId, a.contentHash])
   );
   const stale: number[] = [];
   for (const c of liveClips) {
-    const v = annotByClip.get(c.id);
-    if (v === undefined) {
-      // No annotation yet.
+    const have = annotByClip.get(c.id);
+    const want = expectedHashByClipId.get(c.id);
+    if (have === undefined) {
+      // No annotation row at all.
       stale.push(c.id);
-    } else if (currentVersionId != null && v !== currentVersionId) {
+    } else if (want && have !== want) {
+      // Inputs changed: stale.
       stale.push(c.id);
-    } else if (currentVersionId == null && v != null) {
-      // No active guide; treat any prior annotation as still acceptable.
-      // (Skip.)
+    } else if (have == null && want) {
+      // Pre-v0.4 row with no hash: stale on first sweep.
+      stale.push(c.id);
     }
     if (stale.length >= limit) break;
   }
   return stale;
+}
+
+// ─────────────────────────── Import Audits ───────────────────────────
+
+export async function createImportAudit(
+  input: InsertImportAudit
+): Promise<number> {
+  const db = await requireDb();
+  const result = await db.insert(importAudits).values(input);
+  // @ts-expect-error driver result typing
+  return Number(result[0]?.insertId ?? result.insertId ?? 0);
+}
+
+export async function listImportAudits(
+  userId: number,
+  limit = 5
+): Promise<ImportAudit[]> {
+  const db = await requireDb();
+  return (await db
+    .select()
+    .from(importAudits)
+    .where(eq(importAudits.userId, userId))
+    .orderBy(desc(importAudits.createdAt))
+    .limit(limit)) as ImportAudit[];
 }
 
 export async function getAnnotation(clipId: number): Promise<ClipAnnotation | undefined> {

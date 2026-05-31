@@ -40,6 +40,7 @@ export default function DraftCoach() {
   const [appliedKeys, setAppliedKeys] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<string[]>([]);
   const [result, setResult] = useState<ReviewResult | null>(null);
+  const [streaming, setStreaming] = useState(false);
   const utils = trpc.useUtils();
 
   const review = trpc.draft.review.useMutation({
@@ -59,7 +60,77 @@ export default function DraftCoach() {
       toast.error("Paste a longer draft to review.");
       return;
     }
-    await review.mutateAsync({ draft });
+    setAppliedKeys(new Set());
+    setResult({ scores: {}, summary: "", suggestions: [] });
+    setStreaming(true);
+    try {
+      const res = await fetch("/api/stream/draft-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ draft }),
+      });
+      if (!res.ok || !res.body) {
+        throw new Error(`stream init failed (${res.status})`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let sawDone = false;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const events = buf.split("\n\n");
+        buf = events.pop() ?? "";
+        for (const evt of events) {
+          const dataLine = evt
+            .split("\n")
+            .find((l) => l.startsWith("data: "));
+          if (!dataLine) continue;
+          try {
+            const payload = JSON.parse(dataLine.slice(6));
+            if (payload.type === "scores") {
+              setResult((prev) => ({
+                scores: payload.scores,
+                summary: prev?.summary ?? "",
+                suggestions: prev?.suggestions ?? [],
+              }));
+            } else if (payload.type === "summary") {
+              setResult((prev) => ({
+                scores: prev?.scores ?? {},
+                summary: payload.summary,
+                suggestions: prev?.suggestions ?? [],
+              }));
+            } else if (payload.type === "suggestions") {
+              setResult((prev) => ({
+                scores: prev?.scores ?? {},
+                summary: prev?.summary ?? "",
+                suggestions: payload.suggestions,
+              }));
+            } else if (payload.type === "done") {
+              sawDone = true;
+              utils.draft.list.invalidate();
+            } else if (payload.type === "error") {
+              throw new Error(payload.message ?? "Stream error");
+            }
+          } catch {
+            // skip malformed event
+          }
+        }
+      }
+      if (!sawDone) throw new Error("Stream ended unexpectedly");
+      toast.success("Draft reviewed");
+    } catch (e: any) {
+      // Fall back to non-streaming path on any error.
+      try {
+        await review.mutateAsync({ draft });
+      } catch (e2: any) {
+        toast.error(e2?.message ?? e?.message ?? "Review failed");
+      }
+    } finally {
+      setStreaming(false);
+    }
   };
 
   const pushHistory = (snapshot: string) =>
@@ -131,8 +202,11 @@ export default function DraftCoach() {
               <span className="text-xs text-muted-foreground font-mono">
                 {draft.length.toLocaleString()} chars
               </span>
-              <Button onClick={onReview} disabled={review.isPending}>
-                {review.isPending ? (
+              <Button
+                onClick={onReview}
+                disabled={review.isPending || streaming}
+              >
+                {review.isPending || streaming ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Wand2 className="mr-2 h-4 w-4" />

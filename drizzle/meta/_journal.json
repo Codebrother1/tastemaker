@@ -22,6 +22,13 @@
       "when": 1780205512268,
       "tag": "0002_boring_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1780206221598,
+      "tag": "0003_tranquil_valkyrie",
+      "breakpoints": true
     }
   ]
 }

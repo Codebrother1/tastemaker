@@ -77,6 +77,7 @@ export default function Library() {
 
   const utils = trpc.useUtils();
   const collectionsQuery = trpc.collections.list.useQuery();
+  const importsQuery = trpc.clips.listImports.useQuery({ limit: 5 });
 
   const listQuery = trpc.clips.list.useQuery({
     search: search || undefined,
@@ -164,8 +165,44 @@ export default function Library() {
           onImported={() => {
             utils.clips.list.invalidate();
             utils.collections.list.invalidate();
+            utils.clips.listImports.invalidate();
           }}
         />
+
+        {(importsQuery.data?.length ?? 0) > 0 && (
+          <div className="mb-6 rounded-lg border border-border bg-card/40 p-3">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+              Recent imports
+            </div>
+            <ul className="space-y-1.5">
+              {importsQuery.data!.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium">
+                      {IMPORT_FORMAT_LABELS[row.format as ImportFormat]}
+                    </span>
+                    {row.filename ? (
+                      <span className="text-muted-foreground">
+                        {" "}• <span className="truncate">{row.filename}</span>
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="text-muted-foreground tabular-nums whitespace-nowrap">
+                    {row.inserted} in
+                    {row.skipped > 0 ? ` · ${row.skipped} skipped` : ""}
+                    {row.truncated > 0 ? ` · ${row.truncated} truncated` : ""}
+                  </div>
+                  <div className="text-xs text-muted-foreground whitespace-nowrap">
+                    {new Date(row.createdAt).toLocaleString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-3 mb-6 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">

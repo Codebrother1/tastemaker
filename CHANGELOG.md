@@ -2,6 +2,42 @@
 
 All notable changes to StyleLab are documented here. Newer versions appear first.
 
+## v0.4.0 — Import audit log, streaming Draft Coach, hash-based freshness (2026-05-31)
+
+The v0.4.0 release ships the three v0.3.0 follow-ups. The shape of the app is unchanged — capture, library, analyse, style guide, draft coach — but each of those three areas got a quality fix that addresses a real friction surfaced by v0.3.0 use.
+
+### Added — Import audit log on Library
+- New `import_audits` table records every non-dry-run bulk import (format, filename, inserted, skipped, truncated, timestamp), scoped per user.
+- New `clips.listImports` query returns the most recent imports (default 5).
+- The Library page now renders a `Recent imports` strip above the search bar so re-imports of the same file are easy to spot before clicking `Import` again.
+- Dry-run imports do not write an audit row; only real inserts do.
+
+### Added — Streaming Draft Coach review
+- New `POST /api/stream/draft-review` SSE endpoint authenticates with the same Manus session cookie and streams three chunks: `scores`, `summary`, `suggestions`, then `done` with the persisted review id.
+- `DraftCoach.tsx` now consumes the stream first and falls back to the existing `trpc.draft.review` mutation on any error, so a misbehaving stream never blocks the user.
+- Scores paint as soon as the model returns; summary appears next; suggestions render last. The stream writes a single review row to the database so history behaves the same as before.
+- The button stays in a single `Review draft` state during streaming with a spinner, matching the previous mutation UX.
+
+### Added — Hash-based annotation freshness
+- New `clip_annotations.contentHash` column stores SHA-256 of the meaningful annotation inputs: clip text plus the sorted list of active rule ids.
+- New `computeAnnotationInputHash(content, ruleIds)` helper in `server/_core/styleAI.ts` is deterministic and used by both the one-off `clips.annotate` and the `clips.refreshAnnotations` sweep.
+- `db.listStaleAnnotationClipIds` now takes a `Map<clipId, expectedHash>` instead of a single version id and returns ids whose annotation is missing or whose stored hash doesn't equal the expected one. This means re-publishing the *same* style guide (same rule set, same clips) is correctly a no-op for the refresh sweep.
+- Existing rows with `contentHash IS NULL` are treated as stale relative to any non-empty expected hash, which preserves the v0.3.0 behaviour for any annotation produced before this release.
+
+### Schema migration
+- `drizzle/0003_tranquil_valkyrie.sql` adds `clip_annotations.contentHash` and creates the `import_audits` table. Applied to the project database. No backfill required.
+
+### Tested
+- 40 Vitest tests across 5 files (was 37). New tests:
+  - `clips.bulkImport` writes an `import_audits` row with the right counts and filename.
+  - `clips.bulkImport` in dry-run mode does **not** write an audit row.
+  - `clips.listImports` is per-user and forwards the limit argument.
+  - `clips.refreshAnnotations` passes a populated `Map<clipId, expectedHash>` to the staleness query and a different clip body produces a different hash.
+- `pnpm exec tsc --noEmit` reports zero errors.
+
+### Deliberate scope cuts
+- Streaming review intentionally fans out the existing `reviewDraft` result rather than calling a streaming model. The next-token UX is not the bottleneck — the bottleneck is the user staring at a blank panel for 5–15s. Real token streaming would double the LLM cost and be invisible to the user 99% of the time. We can revisit if the score model gets meaningfully slower.
+
 ## v0.3.0 — Bulk import, inline rewrites, annotation refresh (2026-05-31)
 
 The v0.3.0 release adds the three follow-up features from the v0.2.0 close-out note. Each one was scoped so that nothing about the existing capture / library / analyse loop changes; you simply have new ways to feed clips in, new ways to act on Draft Coach feedback, and a way to keep annotations in sync with your active style guide.

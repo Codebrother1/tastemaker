@@ -14,6 +14,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
 import {
   annotateClip,
+  computeAnnotationInputHash,
   extractTextFromImage,
   generateRulesFromPattern,
   reviewDraft,
@@ -142,12 +143,18 @@ export const appRouter = router({
           reflection: reflections[0]?.content ?? null,
         });
         const active = await db.getActiveVersion(ctx.user.id);
+        const activeRules = await db.listRules(ctx.user.id, { activeOnly: true });
+        const contentHash = computeAnnotationInputHash(
+          clip.content,
+          activeRules.map((r) => r.id)
+        );
         await db.upsertAnnotation({
           clipId: input.clipId,
           userId: ctx.user.id,
           data,
           model: "stylelab-default",
           styleGuideVersionId: active?.id ?? null,
+          contentHash,
         });
         return data;
       }),
@@ -198,6 +205,14 @@ export const appRouter = router({
             capturedFrom: "import",
           }))
         );
+        await db.createImportAudit({
+          userId: ctx.user.id,
+          format: detected,
+          filename: input.filename ?? null,
+          inserted,
+          skipped: parsed.skipped.length,
+          truncated: skippedTooMany,
+        });
         return {
           format: detected,
           inserted,
@@ -205,6 +220,16 @@ export const appRouter = router({
           truncated: skippedTooMany,
         } as const;
       }),
+
+    listImports: protectedProcedure
+      .input(
+        z
+          .object({ limit: z.number().int().min(1).max(50).optional() })
+          .optional()
+      )
+      .query(({ ctx, input }) =>
+        db.listImportAudits(ctx.user.id, input?.limit ?? 5)
+      ),
 
     refreshAnnotations: protectedProcedure
       .input(
@@ -222,15 +247,27 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const active = await db.getActiveVersion(ctx.user.id);
         const limit = input?.limit ?? ANNOTATION_REFRESH_BATCH;
+        const activeRules = await db.listRules(ctx.user.id, { activeOnly: true });
+        const activeRuleIds = activeRules.map((r) => r.id);
+        const allLiveClips = await db.listClips({
+          userId: ctx.user.id,
+          limit: 10_000,
+        });
+        const expectedHashByClipId = new Map<number, string>(
+          allLiveClips.map((c) => [
+            c.id,
+            computeAnnotationInputHash(c.content, activeRuleIds),
+          ])
+        );
         const targetIds = await db.listStaleAnnotationClipIds(
           ctx.user.id,
-          active?.id ?? null,
+          expectedHashByClipId,
           limit
         );
-        const clips = await db.getClipsByIds(ctx.user.id, targetIds);
+        const clipsToRefresh = await db.getClipsByIds(ctx.user.id, targetIds);
         let refreshed = 0;
         const failed: Array<{ clipId: number; reason: string }> = [];
-        for (const clip of clips) {
+        for (const clip of clipsToRefresh) {
           try {
             const reflections = await db.listReflectionsForClip(clip.id);
             const data = await annotateClip({
@@ -245,6 +282,7 @@ export const appRouter = router({
               data,
               model: "stylelab-default",
               styleGuideVersionId: active?.id ?? null,
+              contentHash: expectedHashByClipId.get(clip.id) ?? null,
             });
             refreshed += 1;
           } catch (e) {

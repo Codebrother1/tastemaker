@@ -146,3 +146,31 @@ A private internal tool for capturing admired writing, analyzing style patterns,
 - [x] CHANGELOG.md v0.3.0 entry
 - [x] QA_REPORT_v0.3.0.md
 - [x] Checkpoint saved
+
+## v0.4.0 — Follow-up features
+
+### A. Import audit log (Library)
+- [x] Add `import_audits` table (userId, format, filename, inserted, skipped, truncated, createdAt)
+- [x] Persist a row from `clips.bulkImport` (non-dryRun) and add `clips.listImports` query
+- [x] Add a "Recent imports" strip on Library (last 5)
+- [x] Vitest: bulkImport writes one audit row with the right counts; listImports is per-user
+
+### B. Streaming Draft Coach review
+- [x] Add `/api/stream/draft-review` SSE endpoint (auth via session cookie) that streams scores/summary/suggestions chunks
+- [x] Frontend: Draft Coach calls SSE first, falls back to non-streaming `trpc.draft.review` on error
+- [x] Persist the final review on stream completion (same shape as non-streaming)
+- [x] (Deliberate cut) SSE handler unit test — the streamed payload is just a fan-out of `reviewDraft`, which is already covered by `draft.review schema` test, and the persistence path is the same `db.createDraftReview` already covered. A real SSE test would need an Express harness with cookie auth that adds substantial setup for low marginal coverage.
+
+### C. Hash-based annotation freshness
+- [x] Add `clip_annotations.contentHash` column (varchar(64) sha256)
+- [x] Compute hash from (clip content + active rule ids) on annotate / refresh
+- [x] `listStaleAnnotationClipIds` only returns clips whose annotation is missing OR whose hash differs from the current input hash (even if styleGuideVersionId matches)
+- [x] Vitest: refresh sweep passes a `Map<clipId, expectedHash>`; different content yields different hashes
+
+### Quality
+- [x] All previous tests still pass (40/40)
+- [x] 0 TypeScript errors
+- [x] CHANGELOG.md v0.4.0 entry
+- [x] QA_REPORT_v0.4.0.md
+- [x] INSTRUCTION_MANUAL.md updated for all three additions
+- [x] Checkpoint saved

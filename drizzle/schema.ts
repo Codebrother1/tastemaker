@@ -119,6 +119,13 @@ export const clipAnnotations = mysqlTable(
      * stale on the next refresh sweep.
      */
     styleGuideVersionId: int("styleGuideVersionId"),
+    /**
+     * SHA-256 of (clip content + sorted active rule ids) at annotate time.
+     * Lets the refresh sweep skip clips whose meaningful inputs haven’t
+     * actually changed even when the active style guide version did.
+     * Null for annotations created before v0.4.0.
+     */
+    contentHash: varchar("contentHash", { length: 64 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
@@ -294,3 +301,26 @@ export const clipCollections = mysqlTable(
 
 export type ClipCollection = typeof clipCollections.$inferSelect;
 export type InsertClipCollection = typeof clipCollections.$inferInsert;
+
+/**
+ * Import audit log: one row per non-dryRun bulk import.
+ */
+export const importAudits = mysqlTable(
+  "import_audits",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    format: mysqlEnum("format", ["csv", "readwise", "twitter"]).notNull(),
+    filename: varchar("filename", { length: 500 }),
+    inserted: int("inserted").notNull(),
+    skipped: int("skipped").notNull(),
+    truncated: int("truncated").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (t) => ({
+    userIdx: index("import_audits_user_idx").on(t.userId),
+  })
+);
+
+export type ImportAudit = typeof importAudits.$inferSelect;
+export type InsertImportAudit = typeof importAudits.$inferInsert;
