@@ -16,6 +16,10 @@ vi.mock("./db", () => {
     getActiveVersion: vi.fn(async () => undefined),
     listDraftReviews: vi.fn(async () => []),
     listCollections: vi.fn(async () => []),
+    getCollection: vi.fn(async () => ({ id: 7, userId: 1, name: "Mine" })),
+    deleteCollection: vi.fn(async () => undefined),
+    addClipToCollection: vi.fn(async () => undefined),
+    removeClipFromCollection: vi.fn(async () => undefined),
   };
 });
 
@@ -92,6 +96,40 @@ describe("clips.restore", () => {
     const caller = appRouter.createCaller(ctx());
     await caller.clips.restore({ id: 42 });
     expect(db.restoreClip).toHaveBeenCalledWith(1, 42);
+  });
+});
+
+describe("collections.delete ownership", () => {
+  it("router scopes the delete by user id (db.deleteCollection enforces ownership internally)", async () => {
+    const caller = appRouter.createCaller(ctx());
+    await caller.collections.delete({ id: 999 });
+    expect(db.deleteCollection).toHaveBeenCalledWith(1, 999);
+  });
+});
+
+describe("collections.addClip ownership", () => {
+  it("requires the collection to belong to the caller", async () => {
+    (db.getCollection as any).mockResolvedValueOnce(undefined);
+    const caller = appRouter.createCaller(ctx());
+    await expect(
+      caller.collections.addClip({ clipId: 1, collectionId: 7 })
+    ).rejects.toThrow();
+    expect(db.addClipToCollection).not.toHaveBeenCalled();
+  });
+
+  it("requires the clip to belong to the caller", async () => {
+    (db.getClip as any).mockResolvedValueOnce(undefined);
+    const caller = appRouter.createCaller(ctx());
+    await expect(
+      caller.collections.addClip({ clipId: 1, collectionId: 7 })
+    ).rejects.toThrow();
+    expect(db.addClipToCollection).not.toHaveBeenCalled();
+  });
+
+  it("links the clip when both are owned by the caller", async () => {
+    const caller = appRouter.createCaller(ctx());
+    await caller.collections.addClip({ clipId: 1, collectionId: 7 });
+    expect(db.addClipToCollection).toHaveBeenCalledWith(1, 7);
   });
 });
 

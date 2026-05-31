@@ -41,13 +41,25 @@ export default function Analyze() {
     onError: () => toast.error("Rule generation failed"),
   });
   const deletePattern = trpc.analyze.deletePattern.useMutation({
-    onSuccess: () => utils.analyze.listPatterns.invalidate(),
+    onSuccess: () => {
+      utils.analyze.listPatterns.invalidate();
+      toast.message("Pattern removed");
+    },
+    onError: (e) => toast.error(e.message ?? "Could not remove pattern"),
   });
   const deleteRule = trpc.rules.delete.useMutation({
-    onSuccess: () => utils.rules.list.invalidate(),
+    onSuccess: () => {
+      utils.rules.list.invalidate();
+      toast.message("Rule deleted");
+    },
+    onError: (e) => toast.error(e.message ?? "Could not delete rule"),
   });
   const updateRule = trpc.rules.update.useMutation({
-    onSuccess: () => utils.rules.list.invalidate(),
+    onSuccess: () => {
+      utils.rules.list.invalidate();
+      toast.message("Rule updated");
+    },
+    onError: (e) => toast.error(e.message ?? "Could not update rule"),
   });
 
   const clips = (clipsQuery.data ?? []) as any[];
@@ -171,8 +183,17 @@ export default function Analyze() {
                         variant="ghost"
                         className="text-destructive"
                         onClick={() => deletePattern.mutate({ id: p.id })}
+                        disabled={
+                          deletePattern.isPending &&
+                          (deletePattern.variables as any)?.id === p.id
+                        }
                       >
-                        <Trash2 className="mr-2 h-3 w-3" />
+                        {deletePattern.isPending &&
+                        (deletePattern.variables as any)?.id === p.id ? (
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-3 w-3" />
+                        )}
                         Remove
                       </Button>
                     </div>
@@ -235,7 +256,15 @@ export default function Analyze() {
                             patch: { isActive: !r.isActive },
                           })
                         }
+                        disabled={
+                          updateRule.isPending &&
+                          (updateRule.variables as any)?.id === r.id
+                        }
                       >
+                        {updateRule.isPending &&
+                        (updateRule.variables as any)?.id === r.id ? (
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        ) : null}
                         {r.isActive ? "Deactivate" : "Activate"}
                       </Button>
                       <Button
@@ -243,8 +272,17 @@ export default function Analyze() {
                         variant="ghost"
                         className="text-destructive"
                         onClick={() => deleteRule.mutate({ id: r.id })}
+                        disabled={
+                          deleteRule.isPending &&
+                          (deleteRule.variables as any)?.id === r.id
+                        }
                       >
-                        <Trash2 className="mr-2 h-3 w-3" />
+                        {deleteRule.isPending &&
+                        (deleteRule.variables as any)?.id === r.id ? (
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-3 w-3" />
+                        )}
                         Delete
                       </Button>
                     </div>

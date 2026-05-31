@@ -430,8 +430,22 @@ export async function listCollections(userId: number): Promise<Collection[]> {
     .orderBy(desc(collections.createdAt))) as Collection[];
 }
 
+export async function getCollection(userId: number, id: number) {
+  const db = await requireDb();
+  const rows = await db
+    .select()
+    .from(collections)
+    .where(and(eq(collections.id, id), eq(collections.userId, userId)))
+    .limit(1);
+  return rows[0] as Collection | undefined;
+}
+
 export async function deleteCollection(userId: number, id: number) {
   const db = await requireDb();
+  // Verify ownership before any mutation. If the caller does not own the
+  // collection, refuse silently — prevents cross-user clip_collection deletes.
+  const owned = await getCollection(userId, id);
+  if (!owned) return;
   await db.delete(clipCollections).where(eq(clipCollections.collectionId, id));
   await db
     .delete(collections)

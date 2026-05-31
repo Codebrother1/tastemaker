@@ -42,7 +42,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 
@@ -344,6 +344,8 @@ export default function Library() {
                               >
                                 {col.name}
                                 <button
+                                  type="button"
+                                  aria-label="Remove from collection"
                                   className="ml-1 hover:text-destructive"
                                   onClick={() =>
                                     removeFromCollection.mutate({
@@ -522,8 +524,8 @@ function EditClipDialog({
   const [labels, setLabels] = useState("");
   const [sourceType, setSourceType] = useState<SourceType>("paragraph");
 
-  // Sync state when "editing" changes
-  useMemo(() => {
+  // Sync local form state when a different clip is opened for editing.
+  useEffect(() => {
     if (editing) {
       setContent(editing.content);
       setTitle(editing.sourceTitle ?? "");

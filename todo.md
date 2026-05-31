@@ -81,7 +81,36 @@ A private internal tool for capturing admired writing, analyzing style patterns,
 - [x] Clip deletion is soft-delete (recoverable), not permanent
 
 ## Quality
-- [ ] Vitest tests for compiler, exact prompt/filenames, soft delete behavior
+- [x] Vitest tests for compiler, exact prompt/filenames, soft delete behavior
 - [x] No TypeScript errors
-- [ ] Run all tests
-- [ ] Instruction manual (README) and changelog written
+- [x] Run all tests (12 passing)
+- [x] Instruction manual and changelog written (INSTRUCTION_MANUAL.md, CHANGELOG.md)
+
+## v0.2.0 — QA Audit
+
+- [x] Audit server: routers.ts (all procedures, error handling, ownership checks)
+- [x] Audit server: db.ts query helpers (consistency, null handling)
+- [x] Audit server: styleAI.ts (JSON schemas, error fallbacks)
+- [x] Audit server: styleCompiler.ts (artifact correctness)
+- [x] Audit shared/stylelab.ts and drizzle/schema.ts
+- [x] Audit Home.tsx (signed-out + signed-in states)
+- [x] Audit DashboardLayout.tsx (navigation, active states, signed-out fallback)
+- [x] Audit Capture.tsx (form validation, OCR, reflection step, loading/error states)
+- [x] Audit Library.tsx (search/filter, edit, soft-delete, restore, detail sheet)
+- [x] Audit Collections.tsx (create, delete, empty states)
+- [x] Audit Analyze.tsx (clip selection, pattern run, rule generation)
+- [x] Audit StyleGuide.tsx (regenerate, version switch, copy/download)
+- [x] Audit DraftCoach.tsx (review run, history, suggestions)
+- [x] Verify every button has loading + disabled state and toast feedback
+- [x] Verify every link/route exists and is reachable
+- [x] Verify accessibility: labels, focus rings, keyboard nav
+- [x] Run pnpm tsc --noEmit and pnpm test; fix anything broken
+- [x] Write QA report and changelog v0.2.0
+
+### v0.2.0 — Bugs found and fixed
+- [x] StyleGuide.tsx: corrected artifact key contract to match server schema (styleGuideMd, skillMd, styleProfileJson, claudeInstructions, chatgptInstructions)
+- [x] DraftCoach.tsx: aligned suggestion field names to server schema (ruleTitle, excerpt, suggestion, citationClipIds)
+- [x] Library.tsx EditClipDialog: replaced setState-in-useMemo with useEffect (proper side-effect pattern)
+- [x] Server: collections.addClip/removeClip now verify both clip and collection ownership
+- [x] Server: clips.list with collectionId verifies collection ownership before query
+- [x] Tests: added 3 vitest tests covering collection ownership enforcement (15/15 passing)

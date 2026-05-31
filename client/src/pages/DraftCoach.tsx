@@ -158,24 +158,35 @@ function ResultView({ result }: { result: any }) {
           <div className="space-y-3">
             {suggestions.map((s, i) => (
               <div key={i} className="border-l-2 border-primary/40 pl-3">
-                <div className="flex items-center gap-2 mb-1">
-                  {s.dimension && (
-                    <Badge variant="outline" className="capitalize text-[10px]">
-                      {s.dimension}
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  {s.ruleTitle && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] bg-primary/5 border-primary/30"
+                    >
+                      {s.ruleTitle}
                     </Badge>
                   )}
-                  {s.ruleId && (
+                  {s.ruleId != null && (
                     <Badge variant="outline" className="font-mono text-[10px]">
                       rule #{s.ruleId}
                     </Badge>
                   )}
+                  {Array.isArray(s.citationClipIds) &&
+                    s.citationClipIds.length > 0 && (
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        cites {s.citationClipIds
+                          .map((id: number) => `#${id}`)
+                          .join(", ")}
+                      </span>
+                    )}
                 </div>
-                <p className="text-sm leading-relaxed">{s.suggestion}</p>
-                {s.rewriteExample && (
-                  <p className="text-sm leading-relaxed mt-1 italic text-foreground/80">
-                    “{s.rewriteExample}”
+                {s.excerpt && (
+                  <p className="text-sm leading-relaxed italic text-foreground/70 mb-1">
+                    “{s.excerpt}”
                   </p>
                 )}
+                <p className="text-sm leading-relaxed">{s.suggestion}</p>
               </div>
             ))}
           </div>

@@ -60,6 +60,7 @@ export default function Collections() {
       toast.message("Collection deleted");
       setActiveId(null);
     },
+    onError: (e) => toast.error(e.message ?? "Could not delete collection"),
   });
   const memberClipsQuery = trpc.clips.list.useQuery(
     { collectionId: activeId ?? -1, limit: 200 },
@@ -115,15 +116,24 @@ export default function Collections() {
                     {c.kind}
                   </Badge>
                   <button
+                    type="button"
+                    aria-label={`Delete collection ${c.name}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (confirm("Delete this collection?")) {
                         remove.mutate({ id: c.id });
                       }
                     }}
-                    className="text-muted-foreground hover:text-destructive"
+                    disabled={
+                      remove.isPending && (remove.variables as any)?.id === c.id
+                    }
+                    className="text-muted-foreground hover:text-destructive disabled:opacity-50 disabled:cursor-wait"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    {remove.isPending && (remove.variables as any)?.id === c.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
                   </button>
                 </div>
                 <h3 className="font-serif text-xl mb-1">{c.name}</h3>

@@ -17,11 +17,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 type Artifacts = {
-  styleGuideMarkdown: string;
-  skillMarkdown: string;
-  styleProfile: any;
+  styleGuideMd: string;
+  skillMd: string;
+  styleProfileJson: string;
   claudeInstructions: string;
-  chatGptInstructions: string;
+  chatgptInstructions: string;
 };
 
 export default function StyleGuide() {
@@ -47,6 +47,7 @@ export default function StyleGuide() {
       utils.styleGuide.getActive.invalidate();
       toast.success("Version activated");
     },
+    onError: (e) => toast.error(e.message ?? "Could not activate version"),
   });
 
   const versions = (versionsQuery.data ?? []) as any[];
@@ -95,8 +96,9 @@ export default function StyleGuide() {
                 const isActive = !!v.isActive;
                 const isViewing = viewing?.id === v.id;
                 return (
+                  <div key={v.id} className="flex flex-col">
                   <button
-                    key={v.id}
+                    type="button"
                     onClick={() => setViewingId(v.id)}
                     className={`w-full text-left card-elevated p-3 transition-colors ${
                       isViewing ? "ring-1 ring-primary" : ""
@@ -113,20 +115,31 @@ export default function StyleGuide() {
                     <p className="text-[11px] text-muted-foreground font-mono">
                       {format(new Date(v.createdAt), "MMM d, yyyy · HH:mm")}
                     </p>
-                    <p className="text-xs mt-1 line-clamp-2">{v.summary}</p>
-                    {!isActive && (
-                      <span
-                        role="button"
-                        className="mt-2 inline-flex items-center text-[11px] text-primary hover:underline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          activate.mutate({ id: v.id });
-                        }}
-                      >
-                        Set active
-                      </span>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {v.ruleCount} rule{v.ruleCount === 1 ? "" : "s"}
+                    </p>
+                    {v.summary && (
+                      <p className="text-xs mt-1 line-clamp-2">{v.summary}</p>
                     )}
                   </button>
+                  {!isActive && (
+                    <button
+                      type="button"
+                      className="mt-1 ml-3 text-[11px] text-primary hover:underline disabled:opacity-50 inline-flex items-center gap-1"
+                      disabled={
+                        activate.isPending &&
+                        (activate.variables as any)?.id === v.id
+                      }
+                      onClick={() => activate.mutate({ id: v.id })}
+                    >
+                      {activate.isPending &&
+                        (activate.variables as any)?.id === v.id && (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        )}
+                      Set active
+                    </button>
+                  )}
+                  </div>
                 );
               })}
             </aside>
@@ -151,31 +164,31 @@ function ArtifactViewer({ artifacts }: { artifacts: Artifacts }) {
     {
       key: "guide",
       label: EXPORT_FILENAMES.styleGuide,
-      content: artifacts.styleGuideMarkdown,
+      content: artifacts.styleGuideMd ?? "",
       mime: "text/markdown",
     },
     {
       key: "skill",
       label: EXPORT_FILENAMES.skill,
-      content: artifacts.skillMarkdown,
+      content: artifacts.skillMd ?? "",
       mime: "text/markdown",
     },
     {
       key: "profile",
       label: EXPORT_FILENAMES.styleProfile,
-      content: JSON.stringify(artifacts.styleProfile, null, 2),
+      content: artifacts.styleProfileJson ?? "",
       mime: "application/json",
     },
     {
       key: "claude",
       label: EXPORT_FILENAMES.claude,
-      content: artifacts.claudeInstructions,
+      content: artifacts.claudeInstructions ?? "",
       mime: "text/markdown",
     },
     {
       key: "chatgpt",
       label: EXPORT_FILENAMES.chatgpt,
-      content: artifacts.chatGptInstructions,
+      content: artifacts.chatgptInstructions ?? "",
       mime: "text/markdown",
     },
   ];

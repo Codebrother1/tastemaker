@@ -54,8 +54,12 @@ export const appRouter = router({
           })
           .optional()
       )
-      .query(async ({ ctx, input }) =>
-        db.listClips({
+      .query(async ({ ctx, input }) => {
+        if (input?.collectionId != null) {
+          const owned = await db.getCollection(ctx.user.id, input.collectionId);
+          if (!owned) throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        return db.listClips({
           userId: ctx.user.id,
           search: input?.search,
           sourceType: input?.sourceType,
@@ -63,8 +67,8 @@ export const appRouter = router({
           label: input?.label,
           includeDeleted: input?.includeDeleted,
           limit: input?.limit,
-        })
-      ),
+        });
+      }),
 
     get: protectedProcedure
       .input(z.object({ id: z.number().int() }))
@@ -370,9 +374,12 @@ export const appRouter = router({
     addClip: protectedProcedure
       .input(z.object({ clipId: z.number().int(), collectionId: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        // Verify ownership
-        const clip = await db.getClip(ctx.user.id, input.clipId, true);
-        if (!clip) throw new TRPCError({ code: "NOT_FOUND" });
+        // Verify ownership of both clip and collection.
+        const [clip, coll] = await Promise.all([
+          db.getClip(ctx.user.id, input.clipId, true),
+          db.getCollection(ctx.user.id, input.collectionId),
+        ]);
+        if (!clip || !coll) throw new TRPCError({ code: "NOT_FOUND" });
         await db.addClipToCollection(input.clipId, input.collectionId);
         return { ok: true } as const;
       }),
@@ -380,6 +387,11 @@ export const appRouter = router({
     removeClip: protectedProcedure
       .input(z.object({ clipId: z.number().int(), collectionId: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
+        const [clip, coll] = await Promise.all([
+          db.getClip(ctx.user.id, input.clipId, true),
+          db.getCollection(ctx.user.id, input.collectionId),
+        ]);
+        if (!clip || !coll) throw new TRPCError({ code: "NOT_FOUND" });
         await db.removeClipFromCollection(input.clipId, input.collectionId);
         return { ok: true } as const;
       }),
