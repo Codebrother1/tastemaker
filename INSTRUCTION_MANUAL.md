@@ -34,6 +34,11 @@ The application is structured around six pages: **Capture, Library, Collections,
 - Filter by **source type**, **label**, or **collection**.
 - Open a clip's detail panel to view its reflection, AI annotation (tone, syntax, imagery, rhythm, rhetorical moves, dominant effect), associated collections, and edit metadata.
 - **Soft delete** a clip from the detail panel; it is recoverable from the *Trashed* filter via *Restore*. Clips are never hard-deleted.
+- **Bulk import** (added v0.3.0). Click **Import** in the page header to bring in highlights from outside StyleLab. Three formats are supported and auto-detected:
+  - **CSV** — a `content` column is required; optional columns: `source_title`, `source_author`, `source_url`, `source_location`, `source_type`, `labels` (semicolon-separated).
+  - **Readwise CSV** — the standard Readwise export. The `Category` column is mapped onto StyleLab source types (`book`, `article`, `tweet`, `other`).
+  - **Twitter / X archive** — the `tweets.js` or `tweets.json` file from your X data download. Retweets are skipped automatically and the source URL is reconstructed.
+  Imports are dry-run first: a preview shows the format StyleLab locked onto, the number of clips that will be inserted, the first eight rows, and any rows skipped (with reasons). Nothing is written until you click **Import N clips**. Import cap is **1,000 rows per run** — split larger files. Imported clips are tagged with `capturedFrom = "import"` so you can filter them later if you want.
 
 ### 3.3 Collections (`/collections`)
 - Create a collection labeled by **kind** (`project`, `author`, `theme`, `purpose`, `other`).
@@ -50,11 +55,15 @@ The application is structured around six pages: **Capture, Library, Collections,
 - Switch between versions to view their `STYLE_GUIDE.md`, `SKILL.md`, `style_profile.json`, and assistant instructions.
 - Click **Activate** on any older version to make it the active one (used by the Draft Coach).
 - Each artifact has *Copy* and *Download* buttons. Filenames are exact: `STYLE_GUIDE.md`, `SKILL.md`, `style_profile.json`.
+- **Refresh annotations** (added v0.3.0). When you change which style guide version is active, existing clip annotations were produced under a different guide and are technically stale. Click **Refresh annotations** to re-annotate up to 50 stale or missing clips in one sweep. The toast tells you how many were refreshed, how many failed, and whether more are still pending — if so, just click again. The sweep is **manual on purpose**: it costs LLM calls, so it should never run silently after every Regenerate.
 
 ### 3.6 Draft Coach (`/draft-coach`)
 - Paste your draft, click **Review draft**.
 - Get a six-dimension score, a one-paragraph summary, and a list of **rule-linked suggestions** with the exact excerpt and a revision proposal.
 - Past reviews are retained on the right; click any to revisit.
+- **Inline rule-aware revision** (added v0.3.0). Each suggestion now ships with a `proposedRewrite` aligned to the cited rule. The page shows a **side-by-side word diff** — removed words struck through in red, added words highlighted in green — and an **Apply rewrite** button that splices the rewrite back into your draft at the exact excerpt. Up to 20 applies are stacked in an undo history exposed as **Undo last apply** in the page header.
+- Click **Why** on any suggestion to read the cited rule's `Do / Avoid / When revising` text inline, without leaving the page.
+- If you have already edited the excerpt out of the draft, the Apply button is disabled with an explanation — re-run the review or edit by hand.
 
 ## 4. Hard Constraints (Do Not Change)
 

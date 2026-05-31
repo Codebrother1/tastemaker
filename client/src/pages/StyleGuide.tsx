@@ -12,7 +12,15 @@ import {
 import { trpc } from "@/lib/trpc";
 import { EXPORT_FILENAMES } from "@shared/stylelab";
 import { format } from "date-fns";
-import { Check, Copy, Download, Loader2, Sparkles, BookMarked } from "lucide-react";
+import {
+  BookMarked,
+  Check,
+  Copy,
+  Download,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -49,6 +57,19 @@ export default function StyleGuide() {
     },
     onError: (e) => toast.error(e.message ?? "Could not activate version"),
   });
+  const refreshAnnotations = trpc.clips.refreshAnnotations.useMutation({
+    onSuccess: (data) => {
+      const parts: string[] = [
+        `Refreshed ${data.refreshed} clip${data.refreshed === 1 ? "" : "s"}`,
+      ];
+      if (data.failed.length > 0)
+        parts.push(`${data.failed.length} failed`);
+      if (data.remaining > 0)
+        parts.push(`${data.remaining} still pending — run again to continue`);
+      toast.success(parts.join(" · "));
+    },
+    onError: (e) => toast.error(e.message ?? "Annotation refresh failed"),
+  });
 
   const versions = (versionsQuery.data ?? []) as any[];
   const active = activeQuery.data as any;
@@ -66,17 +87,35 @@ export default function StyleGuide() {
           title="Your living writing guide"
           description="Compile your active rules into portable artifacts: STYLE_GUIDE.md, SKILL.md, style_profile.json, and assistant instructions. Every regeneration creates a new version automatically."
           actions={
-            <Button
-              onClick={() => regenerate.mutateAsync().catch(() => undefined)}
-              disabled={regenerate.isPending}
-            >
-              {regenerate.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Regenerate guide
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                className="bg-card"
+                onClick={() =>
+                  refreshAnnotations.mutateAsync().catch(() => undefined)
+                }
+                disabled={refreshAnnotations.isPending}
+                title="Re-annotate clips whose annotations are stale relative to the active style guide."
+              >
+                {refreshAnnotations.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Refresh annotations
+              </Button>
+              <Button
+                onClick={() => regenerate.mutateAsync().catch(() => undefined)}
+                disabled={regenerate.isPending}
+              >
+                {regenerate.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                Regenerate guide
+              </Button>
+            </div>
           }
         />
 

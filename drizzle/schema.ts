@@ -113,7 +113,14 @@ export const clipAnnotations = mysqlTable(
     userId: int("userId").notNull(),
     data: json("data").$type<ClipAnnotationData>().notNull(),
     model: varchar("model", { length: 128 }),
+    /**
+     * The styleGuideVersions.id that was active when this annotation was
+     * produced. Null for annotations created before v0.3.0 — those count as
+     * stale on the next refresh sweep.
+     */
+    styleGuideVersionId: int("styleGuideVersionId"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   (t) => ({
     clipIdx: uniqueIndex("annotations_clip_unique").on(t.clipId),
@@ -221,6 +228,11 @@ export type DraftSuggestion = {
   excerpt: string;
   suggestion: string;
   citationClipIds: number[];
+  /**
+   * Optional rewrite produced by the model that the user can apply
+   * in-place. Empty string means “no rewrite proposed”.
+   */
+  proposedRewrite?: string;
 };
 
 export const draftReviews = mysqlTable(

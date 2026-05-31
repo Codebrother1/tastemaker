@@ -114,3 +114,35 @@ A private internal tool for capturing admired writing, analyzing style patterns,
 - [x] Server: collections.addClip/removeClip now verify both clip and collection ownership
 - [x] Server: clips.list with collectionId verifies collection ownership before query
 - [x] Tests: added 3 vitest tests covering collection ownership enforcement (15/15 passing)
+
+## v0.3.0 — Follow-up features
+
+### A. Bulk Import (Library)
+- [x] Define shared import schema and source-detection helper (CSV / Readwise CSV / Twitter archive JSON)
+- [x] Add `clips.bulkImport` tRPC procedure that batch-inserts parsed clips and returns counts (single insert call; not wrapped in an explicit transaction — acceptable because a partial insert is not corrupting, and skipped rows are reported per-row)
+- [x] Add Library "Import" button + dialog with file picker, format auto-detect, dry-run preview, confirm
+- [x] Surface per-row import errors gracefully (skipped count + reasons)
+- [x] Vitest: parser detects all three formats; bulkImport scopes to user; ownership preserved
+- [x] INSTRUCTION_MANUAL.md updated with import section
+
+### B. Inline rule-aware revision (Draft Coach)
+- [x] Extend `draft.review` (or add `draft.proposeRevision`) to return a per-suggestion `proposedRewrite` aligned to the cited rule
+- [x] Side-by-side diff component (original excerpt vs. proposed rewrite) using a small diff util
+- [x] "Apply" action that splices the rewrite back into the draft textarea at the matching excerpt
+- [x] "Why" panel that shows the rule (do / avoid / when revising) and the citation clips
+- [x] Vitest: structure of returned suggestions includes proposedRewrite; apply utility splices correctly
+- [x] INSTRUCTION_MANUAL.md updated with revision flow
+
+### C. Annotation refresh on style guide version change
+- [x] Add `styleGuideVersionId` column on `clip_annotations` so we know which guide produced it
+- [x] Manual-only sweep, NOT auto-triggered on `styleGuide.regenerate` (deliberate scope cut: a 50-clip LLM sweep on every regenerate would be costly and surprising; the manual button is the right ergonomics. Re-evaluate in v0.4 if needed.)
+- [x] Add a manual "Refresh annotations" button on Style Guide page that triggers the sweep on demand
+- [x] Vitest: sweep re-annotates stale clips, skips up-to-date ones, respects batch limit
+- [x] INSTRUCTION_MANUAL.md updated with annotation freshness section
+
+### Quality
+- [x] All previous tests still pass
+- [x] 0 TypeScript errors
+- [x] CHANGELOG.md v0.3.0 entry
+- [x] QA_REPORT_v0.3.0.md
+- [x] Checkpoint saved

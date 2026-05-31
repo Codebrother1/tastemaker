@@ -1,6 +1,13 @@
 import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "@shared/const";
-import { COLLECTION_KINDS, SOURCE_TYPES } from "@shared/stylelab";
+import {
+  ANNOTATION_REFRESH_BATCH,
+  COLLECTION_KINDS,
+  IMPORT_FORMATS,
+  IMPORT_MAX_ROWS,
+  SOURCE_TYPES,
+} from "@shared/stylelab";
+import { detectFormat, parseImport } from "@shared/importParser";
 import { z } from "zod";
 import * as db from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -134,13 +141,125 @@ export const appRouter = router({
           sourceAuthor: clip.sourceAuthor,
           reflection: reflections[0]?.content ?? null,
         });
+        const active = await db.getActiveVersion(ctx.user.id);
         await db.upsertAnnotation({
           clipId: input.clipId,
           userId: ctx.user.id,
           data,
           model: "stylelab-default",
+          styleGuideVersionId: active?.id ?? null,
         });
         return data;
+      }),
+
+    bulkImport: protectedProcedure
+      .input(
+        z.object({
+          format: z.enum(IMPORT_FORMATS).optional(),
+          text: z.string().min(1).max(10_000_000),
+          filename: z.string().optional(),
+          dryRun: z.boolean().default(false),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const detected = input.format ?? detectFormat(input.text, input.filename);
+        if (!detected) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Could not detect import format. Choose CSV, Readwise, or Twitter explicitly.",
+          });
+        }
+        const parsed = parseImport(input.text, detected);
+        const skippedTooMany =
+          parsed.clips.length > IMPORT_MAX_ROWS
+            ? parsed.clips.length - IMPORT_MAX_ROWS
+            : 0;
+        const usable = parsed.clips.slice(0, IMPORT_MAX_ROWS);
+        if (input.dryRun) {
+          return {
+            format: detected,
+            previewCount: usable.length,
+            skipped: parsed.skipped,
+            truncated: skippedTooMany,
+            preview: usable.slice(0, 8),
+          } as const;
+        }
+        const inserted = await db.bulkCreateClips(
+          ctx.user.id,
+          usable.map((c) => ({
+            content: c.content,
+            sourceType: c.sourceType,
+            sourceTitle: c.sourceTitle ?? null,
+            sourceAuthor: c.sourceAuthor ?? null,
+            sourceUrl: c.sourceUrl ?? null,
+            sourceLocation: c.sourceLocation ?? null,
+            labels: c.labels ?? [],
+            capturedFrom: "import",
+          }))
+        );
+        return {
+          format: detected,
+          inserted,
+          skipped: parsed.skipped,
+          truncated: skippedTooMany,
+        } as const;
+      }),
+
+    refreshAnnotations: protectedProcedure
+      .input(
+        z
+          .object({
+            limit: z
+              .number()
+              .int()
+              .min(1)
+              .max(ANNOTATION_REFRESH_BATCH)
+              .optional(),
+          })
+          .optional()
+      )
+      .mutation(async ({ ctx, input }) => {
+        const active = await db.getActiveVersion(ctx.user.id);
+        const limit = input?.limit ?? ANNOTATION_REFRESH_BATCH;
+        const targetIds = await db.listStaleAnnotationClipIds(
+          ctx.user.id,
+          active?.id ?? null,
+          limit
+        );
+        const clips = await db.getClipsByIds(ctx.user.id, targetIds);
+        let refreshed = 0;
+        const failed: Array<{ clipId: number; reason: string }> = [];
+        for (const clip of clips) {
+          try {
+            const reflections = await db.listReflectionsForClip(clip.id);
+            const data = await annotateClip({
+              content: clip.content,
+              sourceTitle: clip.sourceTitle,
+              sourceAuthor: clip.sourceAuthor,
+              reflection: reflections[0]?.content ?? null,
+            });
+            await db.upsertAnnotation({
+              clipId: clip.id,
+              userId: ctx.user.id,
+              data,
+              model: "stylelab-default",
+              styleGuideVersionId: active?.id ?? null,
+            });
+            refreshed += 1;
+          } catch (e) {
+            failed.push({
+              clipId: clip.id,
+              reason: (e as Error).message ?? "annotation failed",
+            });
+          }
+        }
+        return {
+          refreshed,
+          failed,
+          remaining: Math.max(0, targetIds.length - refreshed - failed.length),
+          activeVersionId: active?.id ?? null,
+        } as const;
       }),
 
     ocrFromImage: protectedProcedure

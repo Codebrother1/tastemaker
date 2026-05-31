@@ -15,6 +15,13 @@
       "when": 1780202215630,
       "tag": "0001_slimy_psylocke",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1780205512268,
+      "tag": "0002_boring_echo",
+      "breakpoints": true
     }
   ]
 }

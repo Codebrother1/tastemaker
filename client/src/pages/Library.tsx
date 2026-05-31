@@ -40,8 +40,14 @@ import {
   Sparkles,
   Tag,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
+import {
+  IMPORT_FORMATS,
+  IMPORT_FORMAT_LABELS,
+  type ImportFormat,
+} from "@shared/stylelab";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -67,6 +73,7 @@ export default function Library() {
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editing, setEditing] = useState<ListItem | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const utils = trpc.useUtils();
   const collectionsQuery = trpc.collections.list.useQuery();
@@ -133,13 +140,31 @@ export default function Library() {
           title="Your collected writing"
           description="Search, filter, and revisit the writing you have saved. Click any clip to inspect StyleLab's analysis, manage collections, and edit metadata."
           actions={
-            <Link href="/capture">
-              <Button>
-                <PenLine className="mr-2 h-4 w-4" />
-                New clip
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+                className="bg-card"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import
               </Button>
-            </Link>
+              <Link href="/capture">
+                <Button>
+                  <PenLine className="mr-2 h-4 w-4" />
+                  New clip
+                </Button>
+              </Link>
+            </div>
           }
+        />
+        <ImportDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          onImported={() => {
+            utils.clips.list.invalidate();
+            utils.collections.list.invalidate();
+          }}
         />
 
         <div className="flex flex-col lg:flex-row gap-3 mb-6 flex-wrap">
@@ -691,3 +716,257 @@ function AnnotationView({ data }: { data: any }) {
     </div>
   );
 }
+
+
+// ─────────────────────────── Import dialog ───────────────────────────
+
+type ImportDialogProps = {
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  onImported: () => void;
+};
+
+function ImportDialog({ open, onOpenChange, onImported }: ImportDialogProps) {
+  const [text, setText] = useState("");
+  const [filename, setFilename] = useState<string | undefined>(undefined);
+  const [format, setFormat] = useState<ImportFormat | "auto">("auto");
+  const [preview, setPreview] = useState<{
+    format: ImportFormat;
+    previewCount: number;
+    skipped: Array<{ row: number; reason: string }>;
+    truncated: number;
+    preview: Array<{
+      content: string;
+      sourceTitle?: string | null;
+      sourceAuthor?: string | null;
+    }>;
+  } | null>(null);
+
+  const importMut = trpc.clips.bulkImport.useMutation();
+
+  const reset = () => {
+    setText("");
+    setFilename(undefined);
+    setFormat("auto");
+    setPreview(null);
+  };
+
+  const handleClose = (next: boolean) => {
+    if (!next) reset();
+    onOpenChange(next);
+  };
+
+  const onFile = (file: File) => {
+    setFilename(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      setText(result);
+    };
+    reader.readAsText(file);
+  };
+
+  const runDryRun = async () => {
+    if (!text.trim()) {
+      toast.error("Paste content or pick a file first.");
+      return;
+    }
+    try {
+      const res = await importMut.mutateAsync({
+        text,
+        filename,
+        format: format === "auto" ? undefined : format,
+        dryRun: true,
+      });
+      if ("preview" in res && res.preview) {
+        setPreview({
+          format: res.format,
+          previewCount: res.previewCount,
+          skipped: res.skipped,
+          truncated: res.truncated,
+          preview: res.preview,
+        });
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not parse file");
+    }
+  };
+
+  const runImport = async () => {
+    if (!preview) return;
+    try {
+      const res = await importMut.mutateAsync({
+        text,
+        filename,
+        format: preview.format,
+        dryRun: false,
+      });
+      if ("inserted" in res) {
+        toast.success(
+          `Imported ${res.inserted} clip${res.inserted === 1 ? "" : "s"}` +
+            (res.skipped.length > 0
+              ? ` · ${res.skipped.length} skipped`
+              : "") +
+            (res.truncated > 0 ? ` · ${res.truncated} truncated` : "")
+        );
+        onImported();
+        handleClose(false);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Import failed");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Import clips</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Drop in a CSV, a Readwise export, or a Twitter / X archive
+            (<code className="font-mono text-xs">tweets.js</code> /{" "}
+            <code className="font-mono text-xs">tweets.json</code>). StyleLab
+            shows a preview before anything is written.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="import-file" className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                File
+              </Label>
+              <Input
+                id="import-file"
+                type="file"
+                accept=".csv,.json,.js,.txt"
+                className="mt-1"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onFile(f);
+                }}
+              />
+            </div>
+            <div>
+              <Label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Format
+              </Label>
+              <Select
+                value={format}
+                onValueChange={(v) => setFormat(v as ImportFormat | "auto")}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Auto-detect" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto-detect</SelectItem>
+                  {IMPORT_FORMATS.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      {IMPORT_FORMAT_LABELS[f]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Or paste raw content
+            </Label>
+            <Textarea
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setPreview(null);
+              }}
+              placeholder="Paste CSV / JSON content here…"
+              className="mt-1 min-h-[140px] font-mono text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {text.length.toLocaleString()} characters loaded
+              {filename ? ` · ${filename}` : ""}
+            </p>
+          </div>
+
+          {preview && (
+            <div className="rounded-md border border-border bg-card/40 p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-mono uppercase tracking-[0.14em] text-muted-foreground">
+                  Detected: {IMPORT_FORMAT_LABELS[preview.format]}
+                </span>
+                <span className="text-foreground/80">
+                  {preview.previewCount.toLocaleString()} clips ready
+                  {preview.truncated > 0 && (
+                    <> · {preview.truncated.toLocaleString()} over the {IMPORT_MAX_ROWS_LABEL} cap</>
+                  )}
+                  {preview.skipped.length > 0 && (
+                    <> · {preview.skipped.length} skipped</>
+                  )}
+                </span>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {preview.preview.map((row, i) => (
+                  <div
+                    key={i}
+                    className="text-xs border-l-2 border-primary/30 pl-2"
+                  >
+                    <p className="line-clamp-2 text-foreground/85">
+                      {row.content}
+                    </p>
+                    {(row.sourceAuthor || row.sourceTitle) && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {[row.sourceAuthor, row.sourceTitle]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {preview.skipped.length > 0 && (
+                <details className="text-[11px] text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground">
+                    View skipped rows
+                  </summary>
+                  <ul className="mt-1 space-y-0.5">
+                    {preview.skipped.slice(0, 20).map((s, i) => (
+                      <li key={i} className="font-mono">
+                        row {s.row}: {s.reason}
+                      </li>
+                    ))}
+                    {preview.skipped.length > 20 && (
+                      <li>… and {preview.skipped.length - 20} more</li>
+                    )}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleClose(false)}>
+            Cancel
+          </Button>
+          {!preview ? (
+            <Button onClick={runDryRun} disabled={importMut.isPending}>
+              {importMut.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Preview
+            </Button>
+          ) : (
+            <Button onClick={runImport} disabled={importMut.isPending}>
+              {importMut.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Import {preview.previewCount.toLocaleString()} clips
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const IMPORT_MAX_ROWS_LABEL = "1,000-row";

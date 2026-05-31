@@ -288,9 +288,17 @@ const DRAFT_SCHEMA = {
             ruleTitle: { type: "string" },
             excerpt: { type: "string" },
             suggestion: { type: "string" },
+            proposedRewrite: { type: "string" },
             citationClipIds: { type: "array", items: { type: "integer" } },
           },
-          required: ["ruleId", "ruleTitle", "excerpt", "suggestion", "citationClipIds"],
+          required: [
+            "ruleId",
+            "ruleTitle",
+            "excerpt",
+            "suggestion",
+            "proposedRewrite",
+            "citationClipIds",
+          ],
           additionalProperties: false,
         },
       },
@@ -340,6 +348,10 @@ export async function reviewDraft(args: {
     "Score the draft on six dimensions and produce concrete revision suggestions tied to rules.",
     "Use 'excerpt' = the literal phrase from the draft you are commenting on.",
     "Use ruleId from the RULE numbers above; use null if no rule applies.",
+    "Always provide 'proposedRewrite': a concrete rewrite of the excerpt that",
+    "applies the rule. The rewrite must preserve meaning, length within ~20%,",
+    "and be directly substitutable for the excerpt in the draft. If you truly",
+    "cannot improve the excerpt, return an empty string.",
   ].join("\n");
 
   const res = await invokeLLM({
@@ -375,6 +387,7 @@ function normalizeDraftReview(raw: any): DraftReviewResult {
         ruleTitle: String(s?.ruleTitle ?? ""),
         excerpt: String(s?.excerpt ?? ""),
         suggestion: String(s?.suggestion ?? ""),
+        proposedRewrite: typeof s?.proposedRewrite === "string" ? s.proposedRewrite : "",
         citationClipIds: Array.isArray(s?.citationClipIds)
           ? s.citationClipIds.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n))
           : [],

@@ -202,6 +202,22 @@ export async function createClip(input: InsertClip): Promise<number> {
   return Number(result[0]?.insertId ?? result.insertId ?? 0);
 }
 
+/**
+ * Insert many clip rows for a single user in one statement. Returns the
+ * number of rows written. Caller is responsible for batching if the input
+ * exceeds `IMPORT_MAX_ROWS`.
+ */
+export async function bulkCreateClips(
+  userId: number,
+  rows: Array<Omit<InsertClip, "userId">>
+): Promise<number> {
+  if (rows.length === 0) return 0;
+  const db = await requireDb();
+  const values = rows.map((r) => ({ ...r, userId }));
+  await db.insert(clips).values(values);
+  return rows.length;
+}
+
 export async function updateClip(userId: number, clipId: number, patch: Partial<InsertClip>) {
   const db = await requireDb();
   await db
@@ -252,8 +268,58 @@ export async function upsertAnnotation(input: InsertClipAnnotation) {
     .insert(clipAnnotations)
     .values(input)
     .onDuplicateKeyUpdate({
-      set: { data: input.data, model: input.model, createdAt: new Date() },
+      set: {
+        data: input.data,
+        model: input.model,
+        styleGuideVersionId: input.styleGuideVersionId ?? null,
+        createdAt: new Date(),
+      },
     });
+}
+
+/**
+ * Return ids of clips that have NO annotation, plus ids of clips whose
+ * annotation was produced under a style guide version different from the
+ * supplied `currentVersionId`. Soft-deleted clips are excluded. Capped at
+ * `limit` rows so a sweep is bounded.
+ */
+export async function listStaleAnnotationClipIds(
+  userId: number,
+  currentVersionId: number | null,
+  limit: number
+): Promise<number[]> {
+  const db = await requireDb();
+  // Live clips owned by the user.
+  const liveClips = await db
+    .select({ id: clips.id })
+    .from(clips)
+    .where(and(eq(clips.userId, userId), isNull(clips.deletedAt)));
+  if (liveClips.length === 0) return [];
+  const annots = await db
+    .select({
+      clipId: clipAnnotations.clipId,
+      styleGuideVersionId: clipAnnotations.styleGuideVersionId,
+    })
+    .from(clipAnnotations)
+    .where(eq(clipAnnotations.userId, userId));
+  const annotByClip = new Map<number, number | null>(
+    annots.map((a) => [a.clipId, a.styleGuideVersionId])
+  );
+  const stale: number[] = [];
+  for (const c of liveClips) {
+    const v = annotByClip.get(c.id);
+    if (v === undefined) {
+      // No annotation yet.
+      stale.push(c.id);
+    } else if (currentVersionId != null && v !== currentVersionId) {
+      stale.push(c.id);
+    } else if (currentVersionId == null && v != null) {
+      // No active guide; treat any prior annotation as still acceptable.
+      // (Skip.)
+    }
+    if (stale.length >= limit) break;
+  }
+  return stale;
 }
 
 export async function getAnnotation(clipId: number): Promise<ClipAnnotation | undefined> {
