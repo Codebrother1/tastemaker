@@ -40,85 +40,128 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-serif: "Newsreader", "Source Serif 4", "Iowan Old Style", Georgia,
+    "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    "Liberation Mono", "Courier New", monospace;
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  /* Editorial ivory + ink palette with bronze accent */
+  --radius: 0.6rem;
+
+  --background: oklch(0.985 0.012 85);
+  --foreground: oklch(0.22 0.02 60);
+
+  --card: oklch(0.995 0.01 88);
+  --card-foreground: oklch(0.22 0.02 60);
+
+  --popover: oklch(0.995 0.01 88);
+  --popover-foreground: oklch(0.22 0.02 60);
+
+  --primary: oklch(0.42 0.07 55);            /* Deep bronze */
+  --primary-foreground: oklch(0.985 0.012 85);
+
+  --secondary: oklch(0.96 0.012 85);
+  --secondary-foreground: oklch(0.32 0.03 60);
+
+  --muted: oklch(0.955 0.01 85);
+  --muted-foreground: oklch(0.5 0.02 65);
+
+  --accent: oklch(0.93 0.04 75);             /* Warm parchment accent */
+  --accent-foreground: oklch(0.28 0.05 55);
+
+  --destructive: oklch(0.55 0.18 25);
+  --destructive-foreground: oklch(0.985 0.012 85);
+
+  --border: oklch(0.9 0.012 80);
+  --input: oklch(0.93 0.012 80);
+  --ring: oklch(0.55 0.08 55);
+
+  --chart-1: oklch(0.55 0.09 55);
+  --chart-2: oklch(0.65 0.08 75);
+  --chart-3: oklch(0.45 0.06 45);
+  --chart-4: oklch(0.7 0.05 90);
+  --chart-5: oklch(0.35 0.05 65);
+
+  --sidebar: oklch(0.97 0.014 85);
+  --sidebar-foreground: oklch(0.28 0.02 60);
+  --sidebar-primary: oklch(0.42 0.07 55);
+  --sidebar-primary-foreground: oklch(0.985 0.012 85);
+  --sidebar-accent: oklch(0.93 0.02 80);
+  --sidebar-accent-foreground: oklch(0.28 0.05 55);
+  --sidebar-border: oklch(0.9 0.012 80);
+  --sidebar-ring: oklch(0.55 0.08 55);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 .dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
+  --background: oklch(0.18 0.012 60);
+  --foreground: oklch(0.92 0.012 80);
+
+  --card: oklch(0.22 0.012 60);
+  --card-foreground: oklch(0.92 0.012 80);
+
+  --popover: oklch(0.22 0.012 60);
+  --popover-foreground: oklch(0.92 0.012 80);
+
+  --primary: oklch(0.78 0.08 75);
+  --primary-foreground: oklch(0.18 0.02 60);
+
+  --secondary: oklch(0.26 0.012 60);
+  --secondary-foreground: oklch(0.85 0.012 80);
+
+  --muted: oklch(0.26 0.012 60);
+  --muted-foreground: oklch(0.7 0.012 75);
+
+  --accent: oklch(0.32 0.04 70);
+  --accent-foreground: oklch(0.92 0.04 80);
+
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.985 0.012 85);
+
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.6 0.08 70);
+
+  --sidebar: oklch(0.2 0.012 60);
+  --sidebar-foreground: oklch(0.9 0.012 80);
+  --sidebar-primary: oklch(0.78 0.08 75);
+  --sidebar-primary-foreground: oklch(0.18 0.02 60);
+  --sidebar-accent: oklch(0.28 0.02 65);
+  --sidebar-accent-foreground: oklch(0.92 0.04 80);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  --sidebar-ring: oklch(0.6 0.08 70);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.01em;
+    font-feature-settings: "ss01", "lnum";
+  }
+  h1 { font-weight: 500; }
+  h2, h3 { font-weight: 500; }
+  ::selection {
+    background: oklch(0.93 0.04 75);
+    color: oklch(0.22 0.02 60);
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -131,47 +174,59 @@
   input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
   }
+  button:active:not(:disabled) {
+    transform: scale(0.985);
+    transition: transform 160ms var(--ease-out);
+  }
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
-
   .flex {
     min-height: 0;
     min-width: 0;
   }
-
   @media (min-width: 640px) {
     .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-left: 1.5rem;
       padding-right: 1.5rem;
     }
   }
-
   @media (min-width: 1024px) {
     .container {
-      padding-left: 2rem; /* 32px - desktop padding */
+      padding-left: 2rem;
       padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
+      max-width: 1280px;
     }
+  }
+
+  .font-serif { font-family: var(--font-serif); }
+  .font-sans { font-family: var(--font-sans); }
+  .font-mono { font-family: var(--font-mono); }
+
+  .prose-clip {
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: var(--card-foreground);
+  }
+
+  .hairline {
+    border-color: color-mix(in oklch, var(--border) 90%, transparent);
+  }
+
+  .card-elevated {
+    background: var(--card);
+    border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+    border-radius: var(--radius);
+    box-shadow:
+      0 1px 0 color-mix(in oklch, var(--border) 60%, transparent),
+      0 8px 24px -16px oklch(0.22 0.02 60 / 0.18);
   }
 }
