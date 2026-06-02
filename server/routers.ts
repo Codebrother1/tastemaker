@@ -433,7 +433,10 @@ export const appRouter = router({
   styleGuide: router({
     listVersions: protectedProcedure.query(({ ctx }) => db.listVersions(ctx.user.id)),
 
-    getActive: protectedProcedure.query(({ ctx }) => db.getActiveVersion(ctx.user.id)),
+    getActive: protectedProcedure.query(async ({ ctx }) => {
+      const v = await db.getActiveVersion(ctx.user.id);
+      return v ?? null;
+    }),
 
     getVersion: protectedProcedure
       .input(z.object({ id: z.number().int() }))

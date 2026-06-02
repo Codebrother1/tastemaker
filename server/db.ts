@@ -473,7 +473,7 @@ export async function getVersion(userId: number, id: number) {
   return rows[0] as StyleGuideVersion | undefined;
 }
 
-export async function getActiveVersion(userId: number) {
+export async function getActiveVersion(userId: number): Promise<StyleGuideVersion | null> {
   const db = await requireDb();
   const rows = await db
     .select()
@@ -481,7 +481,7 @@ export async function getActiveVersion(userId: number) {
     .where(and(eq(styleGuideVersions.userId, userId), eq(styleGuideVersions.isActive, true)))
     .orderBy(desc(styleGuideVersions.versionNumber))
     .limit(1);
-  return rows[0] as StyleGuideVersion | undefined;
+  return (rows[0] as StyleGuideVersion | undefined) ?? null;
 }
 
 export async function activateVersion(userId: number, id: number) {
