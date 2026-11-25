@@ -1,6 +1,8 @@
-# StyleLab — Personal Writing Taste Engine
+# Tastemaker — StyleLab Personal Writing Taste Engine
 
 > A private studio for the writing you admire.
+
+**Project status:** Tastemaker is the repository name; StyleLab is the application. It is a single-user personal tool built on Manus, not a ready-to-deploy multi-user product. The current implementation relies on Manus services for authentication, LLM/vision processing, and image storage. Running independently requires compatible service configuration or adaptation; the local development commands below do not remove those dependencies.
 
 StyleLab is a single-user internal tool for capturing sentences, paragraphs, and screenshots that move you, analyzing the patterns in what you save, compiling a living personal style guide, and using that guide to coach your own drafts.
 
