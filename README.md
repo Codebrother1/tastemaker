@@ -96,3 +96,7 @@ See [INSTRUCTION_MANUAL.md](./INSTRUCTION_MANUAL.md) for a full page-by-page usa
 - [QA_REPORT_v0.2.0.md](./QA_REPORT_v0.2.0.md)
 - [QA_REPORT_v0.3.0.md](./QA_REPORT_v0.3.0.md)
 - [QA_REPORT_v0.4.0.md](./QA_REPORT_v0.4.0.md)
+
+## License
+
+Project-owned software and documentation are available under the [MIT License](LICENSE). Third-party dependencies, templates, assets, and service integrations remain subject to their respective licenses and terms.
